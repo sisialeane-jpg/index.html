@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Loja de Calçados Profissional</title>
+
+<style>
+body{font-family:Arial;margin:0;background:#f2f2f2}
+header{background:#000;color:#fff;padding:15px;text-align:center;position:relative}
+header button{position:absolute;right:10px;top:10px;background:none;border:none;color:white;font-size:20px}
+.container{padding:20px}
+.admin{background:#fff;padding:15px;border:2px solid red;margin-bottom:20px;border-radius:10px}
+input,select{width:100%;padding:8px;margin:5px 0}
+button{padding:8px;background:black;color:white;border:none;border-radius:5px;margin-top:5px}
+button:hover{background:#333}
+.produtos{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:15px}
+.produto{background:white;padding:10px;border-radius:10px;position:relative}
+.produto img{width:100%;height:200px;object-fit:cover;border-radius:10px}
+.esgotado{position:absolute;top:10px;left:10px;background:red;color:white;padding:5px;font-size:12px}
+.carrinho{background:white;padding:15px;margin-top:20px;border-radius:10px}
+</style>
+</head>
+<body>
+
+<header>
+<h1>🥿 Loja de Calçados</h1>
+<button onclick="loginAdmin()">🔒</button>
+</header>
+
+<div class="container">
+
+<div id="adminPanel"></div>
+
+<h2>Filtrar por Categoria</h2>
+<select id="filtroCategoria" onchange="mostrarProdutos()"></select>
+
+<h2>Produtos</h2>
+<div class="produtos" id="listaProdutos"></div>
+
+<h2>🛒 Carrinho</h2>
+<div class="carrinho">
+<div id="itensCarrinho"></div>
+<h3 id="total">Total: R$ 0.00</h3>
+<button onclick="finalizarCompra()">Finalizar Pedido</button>
+</div>
+
+</div>
+
+<script>
+
+const senhaAdmin = "369258";
+let modoAdmin = false;
+
+let produtos = JSON.parse(localStorage.getItem("produtos")) || [];
+let categorias = JSON.parse(localStorage.getItem("categorias")) || [];
+let carrinho = [];
+
+function salvarDados(){
+localStorage.setItem("produtos",JSON.stringify(produtos));
+localStorage.setItem("categorias",JSON.stringify(categorias));
+}
+
+function loginAdmin(){
+const senha = prompt("Senha do administrador:");
+if(senha === senhaAdmin){
+modoAdmin = true;
+mostrarAdmin();
+mostrarCategorias();
+mostrarProdutos();
+alert("Modo Admin ativado");
+}else{alert("Senha incorreta")}
+}
+
+function mostrarAdmin(){
+document.getElementById("adminPanel").innerHTML=`
+<div class="admin">
+<h2>Painel Admin</h2>
+
+<h3>Criar Categoria</h3>
+<input type="text" id="novaCategoria" placeholder="Nome da categoria">
+<button onclick="criarCategoria()">Criar Categoria</button>
+
+<h3>Adicionar Produto</h3>
+<input type="text" id="nome" placeholder="Nome">
+<input type="number" id="preco" placeholder="Preço">
+<input type="text" id="tamanho" placeholder="Tamanho">
+<input type="text" id="cor" placeholder="Cor">
+<input type="number" id="estoque" placeholder="Estoque">
+<select id="categoriaSelect"></select>
+<input type="file" id="imagem">
+<button onclick="adicionarProduto()">Adicionar Produto</button>
+</div>
+`;
+mostrarCategoriasAdmin();
+}
+
+function criarCategoria(){
+const nome=document.getElementById("novaCategoria").value;
+if(!nome)return alert("Digite nome");
+categorias.push(nome);
+salvarDados();
+mostrarCategorias();
+mostrarCategoriasAdmin();
+}
+
+function mostrarCategorias(){
+const filtro=document.getElementById("filtroCategoria");
+filtro.innerHTML='<option value="">Todas</option>';
+categorias.forEach(cat=>{
+filtro.innerHTML+=`<option value="${cat}">${cat}</option>`;
+});
+}
+
+function mostrarCategoriasAdmin(){
+const select=document.getElementById("categoriaSelect");
+if(!select)return;
+select.innerHTML="";
+categorias.forEach(cat=>{
+select.innerHTML+=`<option value="${cat}">${cat}</option>`;
+});
+}
+
+function adicionarProduto(){
+const nome=nome.value;
+const preco=parseFloat(preco.value);
+const tamanho=tamanho.value;
+const cor=cor.value;
+const estoque=parseInt(estoque.value);
+const categoria=categoriaSelect.value;
+const imagemInput=document.getElementById("imagem");
+
+if(!nome||!preco||!tamanho||!cor||!estoque||!categoria||imagemInput.files.length===0){
+return alert("Preencha tudo");
+}
+
+const reader=new FileReader();
+reader.onload=function(e){
+produtos.push({nome,preco,tamanho,cor,estoque,categoria,imagem:e.target.result});
+salvarDados();
+mostrarProdutos();
+};
+reader.readAsDataURL(imagemInput.files[0]);
+}
+
+function mostrarProdutos(){
+const lista=document.getElementById("listaProdutos");
+lista.innerHTML="";
+const filtro=document.getElementById("filtroCategoria").value;
+
+produtos.forEach((p,i)=>{
+if(filtro && p.categoria!==filtro)return;
+
+lista.innerHTML+=`
+<div class="produto">
+${p.estoque<=0?'<div class="esgotado">ESGOTADO</div>':''}
+<img src="${p.imagem}">
+<h3>${p.nome}</h3>
+<p>R$ ${p.preco.toFixed(2)}</p>
+<p>Categoria: ${p.categoria}</p>
+<p>Estoque: ${p.estoque}</p>
+${p.estoque>0?`<button onclick="addCarrinho(${i})">Comprar</button>`:''}
+${modoAdmin?`<button onclick="removerProduto(${i})" style="background:red">Excluir</button>`:''}
+</div>
+`;
+});
+}
+
+function removerProduto(i){
+produtos.splice(i,1);
+salvarDados();
+mostrarProdutos();
+}
+
+function addCarrinho(i){
+if(produtos[i].estoque<=0)return;
+carrinho.push(produtos[i]);
+produtos[i].estoque--;
+salvarDados();
+mostrarProdutos();
+atualizarCarrinho();
+}
+
+function atualizarCarrinho(){
+const itens=document.getElementById("itensCarrinho");
+itens.innerHTML="";
+let total=0;
+carrinho.forEach((item,i)=>{
+total+=item.preco;
+itens.innerHTML+=`<p>${item.nome} - R$ ${item.preco.toFixed(2)}</p>`;
+});
+document.getElementById("total").innerText="Total: R$ "+total.toFixed(2);
+}
+
+function finalizarCompra(){
+if(carrinho.length===0)return alert("Carrinho vazio");
+
+let msg="🛍️ Pedido:%0A%0A";
+let total=0;
+
+carrinho.forEach(item=>{
+msg+=`Produto: ${item.nome}%0A`;
+msg+=`Categoria: ${item.categoria}%0A`;
+msg+=`Preço: R$ ${item.preco.toFixed(2)}%0A%0A`;
+total+=item.preco;
+});
+
+msg+=`Total: R$ ${total.toFixed(2)}`;
+
+window.open(`https://wa.me/5581994497746?text=${msg}`,"_blank");
+}
+
+mostrarCategorias();
+mostrarProdutos();
+
+</script>
+</body>
+</html>
